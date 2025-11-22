@@ -1,91 +1,73 @@
 # grade-generator.py
+# Author: Eden Oliver
+# This script collects assignment scores and weights, validates them,
+# calculates a weighted grade, GPA, and pass/fail status, and saves
+# everything into a CSV file.
 
 import csv
 
-class Assignment:
-    def __init__(self, name, category, grade, weight):
-        self.name = name
-        self.category = category.upper()
-        self.grade = grade
-        self.weight = weight
-        self.weighted_grade = (grade / 100) * weight
-
-def get_valid_input(prompt, type_func, condition_func, error_msg):
-    """Helper function for validated input"""
+def get_float_input(prompt):
+    """Safely collect a float input with validation."""
     while True:
         try:
-            value = type_func(input(prompt))
-            if condition_func(value):
-                return value
-            else:
-                print(error_msg)
+            value = float(input(prompt))
+            return value
         except ValueError:
-            print("Invalid input type. Please try again.")
+            print("Invalid input. Please enter a number.")
+
+def calculate_gpa(final_grade):
+    """Convert a percentage grade into a 4.0 scale GPA."""
+    if final_grade >= 90:
+        return 4.0
+    elif final_grade >= 80:
+        return 3.0
+    elif final_grade >= 70:
+        return 2.0
+    elif final_grade >= 60:
+        return 1.0
+    return 0.0
 
 def main():
-    print("=== Welcome to Grade Generator Calculator ===")
+    print("=== Grade Generator ===")
+
+    student_name = input("Student Name: ")
+
     assignments = []
+    total_weight = 0
 
-    while True:
-        name = input("Enter assignment name: ").strip()
+    # Collect scores until the weight reaches 100%
+    while total_weight < 100:
+        score = get_float_input("Enter assignment score: ")
+        weight = get_float_input("Enter assignment weight (%): ")
 
-        category = input("Enter category (FA/SA): ").strip().upper()
-        while category not in ("FA", "SA"):
-            print("Invalid category! Must be FA or SA.")
-            category = input("Enter category (FA/SA): ").strip().upper()
+        # Ensure weights don’t exceed 100%
+        if total_weight + weight > 100:
+            print("Total weight cannot exceed 100%. Try again.")
+            continue
 
-        grade = get_valid_input(
-            "Enter grade obtained (0-100): ",
-            float,
-            lambda x: 0 <= x <= 100,
-            "Grade must be between 0 and 100."
-        )
+        assignments.append((score, weight))
+        total_weight += weight
 
-        weight = get_valid_input(
-            "Enter weight (positive number): ",
-            float,
-            lambda x: x > 0,
-            "Weight must be a positive number."
-        )
+    # Calculate weighted final grade
+    final_grade = sum(score * (weight / 100) for score, weight in assignments)
+    gpa = calculate_gpa(final_grade)
+    status = "Pass" if final_grade >= 50 else "Fail"
 
-        assignments.append(Assignment(name, category, grade, weight))
-
-        more = input("Add another assignment? (y/n): ").strip().lower()
-        if more != 'y':
-            break
-
-    # Calculate category totals
-    total_fa = sum(a.weighted_grade for a in assignments if a.category == "FA")
-    total_sa = sum(a.weighted_grade for a in assignments if a.category == "SA")
-    final_grade = total_fa + total_sa
-    gpa = (final_grade / 100) * 5.0
-
-    # Pass/fail
-    fa_weight_total = sum(a.weight for a in assignments if a.category == "FA")
-    sa_weight_total = sum(a.weight for a in assignments if a.category == "SA")
-    fa_pass = total_fa >= (fa_weight_total * 0.5)
-    sa_pass = total_sa >= (sa_weight_total * 0.5)
-    status = "PASS" if fa_pass and sa_pass else "FAIL"
-
-    # Print summary
-    print("\n--- Grade Summary ---")
-    for a in assignments:
-        print(f"{a.name} ({a.category}): Grade={a.grade}, Weight={a.weight}, Weighted={a.weighted_grade:.2f}")
-    print(f"\nTotal Formative: {total_fa:.2f}")
-    print(f"Total Summative: {total_sa:.2f}")
-    print(f"Final Grade: {final_grade:.2f}")
-    print(f"GPA: {gpa:.2f}")
+    print(f"\nFinal Grade: {final_grade}")
+    print(f"GPA: {gpa}")
     print(f"Status: {status}")
 
-    # Save CSV
-    csv_filename = "grades.csv"
-    with open(csv_filename, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Assignment", "Category", "Grade", "Weight"])
-        for a in assignments:
-            writer.writerow([a.name, a.category, a.grade, a.weight])
+    # Save results to CSV
+    with open("grades.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Assignment", "Score", "Weight"])
+        for i, (score, weight) in enumerate(assignments, start=1):
+            writer.writerow([f"Assignment {i}", score, weight])
+        writer.writerow(["Final Grade", final_grade])
+        writer.writerow(["GPA", gpa])
+        writer.writerow(["Status", status])
 
-    print(f"\nAll assignment data saved to {csv_filename}")
+    print("Saved to grades.csv")
 
 if __name__ == "__main__":
     main()
